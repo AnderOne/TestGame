@@ -13,7 +13,6 @@ namespace TestGame {
 		//...
 		private Texture2D[] run_image, end_image;
 		private SpriteBatch panel;
-		private SpriteFont font;
 		private Rectangle[] rect;
 		private Field field;
 		private bool used = false;
@@ -36,6 +35,7 @@ namespace TestGame {
 		//...
 		protected override void LoadContent() {
 			base.LoadContent();
+			//...
 			run_image[0] = Game.Content.Load<Texture2D>("RUN_01");
 			run_image[1] = Game.Content.Load<Texture2D>("RUN_02");
 			//...
@@ -43,7 +43,6 @@ namespace TestGame {
 			end_image[1] = Game.Content.Load<Texture2D>("END_02");
 			end_image[2] = Game.Content.Load<Texture2D>("END_00");
 			//...
-			font = Game.Content.Load<SpriteFont>("FONT");
 		}
 		//...
 		public override void Initialize() {

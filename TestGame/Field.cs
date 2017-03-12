@@ -142,15 +142,15 @@ namespace TestGame {
 				int iy1 = 0, iy2 = 0;
 				for (int iy = 1; iy < num.Y; ++ iy) {
 					var it = items[ix, iy];
-					if (it.stat == Item.Stat.IS_NONE) { iy2 = iy1 = iy + 1; continue; }
-					if (it.text != items[ix, iy1].text) {
+					if ((it.text != items[ix, iy1].text) || (it.stat == Item.Stat.IS_NONE)) {
 						if (iy2 - iy1 > 1) {
 							while (iy1 <= iy2) {
 								items[ix, iy1 ++].stat = Item.Stat.IS_FREE;
 							}
 							evn = false;
 						}
-						iy1 = iy;
+						if (it.stat == Item.Stat.IS_NONE) iy1 = iy + 1;
+						else iy1 = iy;
 					}
 					else {
 						iy2 = iy;
@@ -167,15 +167,15 @@ namespace TestGame {
 				int ix1 = 0, ix2 = 0;
 				for (int ix = 1; ix < num.X; ++ ix) {
 					var it = items[ix, iy];
-					if (it.stat == Item.Stat.IS_NONE) { ix2 = ix1 = ix + 1; continue; }
-					if (it.text != items[ix1, iy].text) {
+					if ((it.text != items[ix1, iy].text) || (it.stat == Item.Stat.IS_NONE)) {
 						if (ix2 - ix1 > 1) {
 							while (ix1 <= ix2) {
 								items[ix1 ++, iy].stat = Item.Stat.IS_FREE;
 							}
 							evn = false;
 						}
-						ix1 = ix;
+						if (it.stat == Item.Stat.IS_NONE) ix1 = ix + 1;
+						else ix1 = ix;
 					}
 					else {
 						ix2 = ix;
@@ -234,8 +234,8 @@ namespace TestGame {
 			base.Draw(gameTime);
 		}
 		//...
-		private void SwapText(Item _lhs, Item _rhs) {
-			Texture2D tmp = _lhs.text; _lhs.text = _rhs.text; _rhs.text = tmp;
+		private void SwapText(Item lhs, Item rhs) {
+			Texture2D tmp = lhs.text; lhs.text = rhs.text; rhs.text = tmp;
 			//...
 		}
 		//...
@@ -250,106 +250,93 @@ namespace TestGame {
 				Click(new Point(mouse.X, mouse.Y));
 			}
 			//...
+			if (time < TIMES_FOR_UPDATE) return;
+			//...
 			switch (stat) {
 			//Ожидаем появления новых элементов:
 			case Stat.DO_INIT:
-				if (time > TIMES_FOR_UPDATE) {
-					for (int ix = 0; ix < num.X; ++ ix) for (int iy = 0; iy < num.Y; ++ iy) {
-						items[ix, iy].stat = Item.Stat.IS_STAT;
-					}
-					stat = Stat.DO_WAIT;
-					time = 0;
+				for (int ix = 0; ix < num.X; ++ ix) for (int iy = 0; iy < num.Y; ++ iy) {
+					items[ix, iy].stat = Item.Stat.IS_STAT;
 				}
+				if (!Check()) {
+					stat = Stat.DO_FREE;
+					break;
+				}
+				stat = Stat.DO_WAIT;
 				break;
 			//Уничтожаем ненужные элементы:
 			case Stat.DO_FREE:
-				if (time > TIMES_FOR_UPDATE) {
-					bool evn = false;
-					for (int ix = 0; ix < num.X; ++ ix) {
-						int iy1 = - 1;
-						for (int iy = num.Y - 1; iy >= 0; -- iy) {
-							var it = items[ix, iy];
-							if (it.stat == Item.Stat.IS_FREE) {
-								it.stat = Item.Stat.IS_NONE;
-								++ score;
-								if (iy1 < 0) iy1 = iy;
-							}
-							else
-								if ((it.stat != Item.Stat.IS_NONE)
-								    && (iy1 >= 0)) {
-								it.stat = Item.Stat.IS_MOVE;
-								it.off = new Point(0, iy1 - iy);
-								evn = true;
-								-- iy1;
-							}
+				bool evn = false;
+				for (int ix = 0; ix < num.X; ++ ix) {
+					int iy1 = - 1;
+					for (int iy = num.Y - 1; iy >= 0; -- iy) {
+						var it = items[ix, iy];
+						if (it.stat == Item.Stat.IS_FREE) {
+							it.stat = Item.Stat.IS_NONE;
+							++ score;
+							if (iy1 < 0) iy1 = iy;
+							continue;
+						}
+						if (it.stat == Item.Stat.IS_NONE) {
+							continue;
+						}
+						if (iy1 >= 0) {
+							it.stat = Item.Stat.IS_MOVE;
+							it.off.X = 0;
+							it.off.Y = iy1 - iy;
+							evn = true;
+							-- iy1;
 						}
 					}
-					if (!evn) {
-						Gener();
-						stat = Stat.DO_INIT;
-						time = 0;
-						break;
-					}
-					stat = Stat.DO_MOVE;
-					time = 0;
 				}
+				if (!evn) {
+					Gener(); stat = Stat.DO_INIT;
+					break;
+				}
+				stat = Stat.DO_MOVE;
 				break;
 			//Пытаемся выполнить перестановку:
 			case Stat.DO_SWAP:
-				if (time > TIMES_FOR_UPDATE) {
-					SwapText(curr, next);
-					if (!Check()) {
-						if (curr.stat != Item.Stat.IS_FREE)
-							curr.stat = Item.Stat.IS_USED;
-						if (next.stat != Item.Stat.IS_FREE)
-							next.stat = Item.Stat.IS_STAT;
-						curr = null;
-						stat = Stat.DO_FREE;
-						time = 0;
-						break;
-					}
-					stat = Stat.DO_BACK;
-					time = 0;
+				SwapText(curr, next);
+				if (!Check()) {
+					if (curr.stat != Item.Stat.IS_FREE) curr.stat = Item.Stat.IS_USED;
+					if (next.stat != Item.Stat.IS_FREE) next.stat = Item.Stat.IS_STAT;
+					stat = Stat.DO_FREE;
+					curr = null;
+					break;
 				}
+				stat = Stat.DO_BACK;
 				break;
 			//Откат перестановки:
 			case Stat.DO_BACK:
-				if (time > TIMES_FOR_UPDATE) {
-					SwapText(curr, next);
-					curr.stat = next.stat = Item.Stat.IS_STAT;
-					stat = Stat.DO_WAIT;
-					time = 0;
-				}
+				SwapText(curr, next);
+				curr.stat = next.stat = Item.Stat.IS_STAT;
+				stat = Stat.DO_WAIT;
 				break;
 			//Перемещение элементов:
 			case Stat.DO_MOVE:
-				if (time > TIMES_FOR_UPDATE) {
-					for (int ix = 0; ix < num.X; ++ ix) for (int iy = num.Y - 1; iy >= 0; -- iy) {
-						var it = items[ix, iy];
-						if (it.stat != Item.Stat.IS_MOVE) continue;
-						var t0 = items[ix + it.off.X, iy + it.off.Y];
-						t0.stat = Item.Stat.IS_STAT;
-						it.stat = Item.Stat.IS_NONE;
-						t0.text = it.text;
-						it.text = null;
-					}
-					if (!Check()) {
-						stat = Stat.DO_FREE;
-						time = 0;
-						break;
-					}
-					Gener();
-					stat = Stat.DO_INIT;
-					time = 0;
+				for (int ix = 0; ix < num.X; ++ ix) for (int iy = num.Y - 1; iy >= 0; -- iy) {
+					var it = items[ix, iy];
+					if (it.stat != Item.Stat.IS_MOVE) continue;
+					var t0 = items[ix + it.off.X, iy + it.off.Y];
+					t0.stat = Item.Stat.IS_STAT;
+					it.stat = Item.Stat.IS_NONE;
+					t0.text = it.text;
+					it.text = null;
 				}
+				if (!Check()) {
+					stat = Stat.DO_FREE;
+					break;
+				}
+				Gener();
+				stat = Stat.DO_INIT;
 				break;
 			//Ожидание действия:
 			case Stat.DO_WAIT:
-				if (time > TIMES_FOR_UPDATE) {
-					time = 0;
-				}
+				//...
 				break;
 			}
+			time = 0;
 			//...
 			base.Update(gameTime);
 		}
